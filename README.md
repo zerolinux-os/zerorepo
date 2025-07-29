@@ -69,7 +69,7 @@ Add the following to your `/etc/pacman.conf`:
 ```ini
 [zerorepo]
 SigLevel = Optional TrustAll
-Server = file:///home/$USER/ZeroRepo/x86_64
+Server = file:///repo/zerorepo/x86_64
 ```
 
 ### 4. Update Package Database
