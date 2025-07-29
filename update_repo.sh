@@ -1,48 +1,58 @@
 #!/bin/bash
-#
-# ZeroRepo Updater Script
-# Automates updating the local repo and pushing changes to GitHub.
-#
 
-set -e # Exit immediately if a command exits with a non-zero status.
+# ============================================
+# 🚀 ZeroRepo Updater Script by ZeroX-AI 😈🔥
+# Automates: build -> repo-add -> sync -> git push
+# ============================================
 
-# --- Configuration ---
-REPO_DIR="$HOME/ZeroRepo"
+set -e
+
+# --- CONFIGURATION ---
+REPO_SRC="$HOME/ZeroRepo"
+REPO_DST="/repo/zerorepo/x86_64"
 BUILD_SCRIPT="$HOME/build_zerorepo.sh"
 COMMIT_MESSAGE="Update packages on $(date +'%Y-%m-%d %H:%M:%S')"
+DB_NAME="zerorepo.db.tar.gz"
 
-# --- Main Logic ---
+echo "🔁 Starting ZeroRepo update..."
 
-# 1. Run the build script to update local packages
-echo "--> Running the build script to fetch and build updates..."
-if [ -f "$BUILD_SCRIPT" ]; then
+# --- STEP 1: Run build script ---
+echo "⚙️  Running build script..."
+if [[ -f "$BUILD_SCRIPT" ]]; then
     bash "$BUILD_SCRIPT"
 else
-    echo "Error: Build script not found at $BUILD_SCRIPT" >&2
+    echo "❌ Build script not found at: $BUILD_SCRIPT"
     exit 1
 fi
 
-# 2. Navigate to the repository directory
-cd "$REPO_DIR"
+# --- STEP 2: Generate new repo database ---
+echo "📦 Rebuilding local repo database..."
+cd "$REPO_SRC/x86_64"
+rm -f zerorepo.db* zerorepo.files*
+repo-add "$DB_NAME" *.pkg.tar.zst
 
-# 3. Ensure git-lfs is tracking the correct files
+# --- STEP 3: Sync to /repo/ folder ---
+echo "📁 Syncing repository to $REPO_DST..."
+sudo mkdir -p "$REPO_DST"
+sudo rsync -av --delete "$REPO_SRC/x86_64/" "$REPO_DST/"
+
+# --- STEP 4: Set proper permissions ---
+echo "🔐 Fixing permissions..."
+sudo chown -R root:root "$REPO_DST"
+sudo chmod -R 755 "$REPO_DST"
+
+# --- STEP 5: Git push ---
+cd "$REPO_SRC"
+echo "🔍 Checking for git changes..."
 git lfs track "x86_64/*.pkg.tar.zst"
-
-# 4. Check for changes
-if git diff-index --quiet HEAD --; then
-    echo "--> No new package updates to commit. Repository is already up-to-date."
-    exit 0
-fi
-
-# 5. Add, commit, and push the changes
-echo "--> Adding changes to Git..."
 git add .gitattributes .
 
-echo "--> Committing changes..."
-git commit -m "$COMMIT_MESSAGE"
+if git diff-index --quiet HEAD --; then
+    echo "✅ No new git changes."
+else
+    echo "✅ Committing and pushing changes..."
+    git commit -m "$COMMIT_MESSAGE"
+    git push origin main
+fi
 
-echo "--> Pushing changes to GitHub..."
-git push origin main
-
-echo "---"
-echo "✅ ZeroRepo update and push complete!"
+echo "✅ ZeroRepo update complete!"
